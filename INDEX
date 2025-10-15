@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>俊傑 App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chosen Palette: Crimson & Gold -->
+    <!-- Application Structure Plan: The application uses a standard mobile SPA structure. It starts with a splash screen for a clear entry point. The main interface is a tab-based navigation system (Home, Upgrade, Social), which is intuitive for mobile users and effectively separates the app's core functionalities: user status/registration, gamified progression, and entertainment. The state (registered/unregistered) is handled on the Home tab, ensuring users see the relevant view immediately. This structure was chosen because it's highly user-friendly, scalable, and directly maps to the distinct user tasks outlined in the report. -->
+    <!-- Visualization & Content Choices: 
+        - Registration Form (Home): Goal: User Onboarding. Method: Standard HTML form. Interaction: Real-time validation enables the submit button. Justification: Clear, standard UX pattern for data entry.
+        - User Status Card (Home): Goal: Display Progress. Method: Styled HTML card with dynamically calculated text. A QR code is simulated using a CSS grid of divs to avoid SVG graphics. Interaction: None, display only. Justification: Provides a tangible sense of reward and progress.
+        - Upgrade Progress (Upgrade): Goal: Gamify Sharing. Method: Text and a simple CSS progress bar. Interaction: A button copies a pre-formatted text link to the clipboard. Justification: Motivates users to share by showing clear goals and rewards.
+        - Social Profiles (Social): Goal: Entertainment/Ambiance. Method: CSS column-count for a waterfall layout of statically-defined user cards. Interaction: None, display only. Justification: Adds visual interest and satirical content with minimal complexity.
+        - Library/Method: Vanilla JS for all logic, Tailwind CSS for styling, Lucide for icons.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        .fade-out { animation: fadeOut 0.5s ease-in-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.95); visibility: hidden; } }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-btn.active { color: #dc2626; }
+        .form-input { @apply w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500; }
+        .main-btn { @apply w-full px-4 py-3 text-lg font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-all duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-[1.03] transform; }
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            border-radius: 9999px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 100;
+        }
+        .toast.show { opacity: 1; visibility: visible; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div id="splash-screen" class="fixed inset-0 bg-gray-50 flex flex-col justify-center items-center z-50 p-8 fade-in">
+        <div class="text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-check mx-auto text-red-600"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+            <h1 class="text-4xl font-bold text-gray-800 mt-4">俊傑 App</h1>
+            <p class="text-lg text-gray-600 mt-4">@台灣同胞，識時務者為俊傑</p>
+        </div>
+        <button id="enter-app-btn" class="absolute bottom-16 w-11/12 max-w-sm px-4 py-3 text-lg font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+            進入應用
+        </button>
+    </div>
+
+    <main id="main-app" class="hidden pb-24">
+        <div id="home-page" class="tab-content active p-4 md:p-6">
+            <div id="unregistered-view">
+                <h2 class="text-2xl font-bold mb-6 text-center">歡迎歸鄉，請登記您的資訊</h2>
+                <form id="register-form" class="space-y-5">
+                    <div>
+                        <label for="name" class="font-medium text-gray-700">姓名</label>
+                        <input type="text" id="name" name="name" class="form-input mt-1" placeholder="請輸入姓名" required>
+                    </div>
+                    <div>
+                        <label for="dob" class="font-medium text-gray-700">出生日期</label>
+                        <input type="date" id="dob" name="dob" class="form-input mt-1" required>
+                    </div>
+                    <div>
+                        <label for="address" class="font-medium text-gray-700">現住址</label>
+                        <input type="text" id="address" name="address" class="form-input mt-1" placeholder="請輸入現住址" required>
+                    </div>
+                    <div class="flex items-center pt-2">
+                        <input type="checkbox" id="agreement" name="agreement" class="h-5 w-5 text-red-600 border-gray-300 rounded focus:ring-red-500" required>
+                        <label for="agreement" class="ml-3 text-sm text-gray-600">我已閱讀並同意，領取身份證即代表加入中國共產黨。</label>
+                    </div>
+                    <button type="submit" id="register-btn" class="main-btn mt-6" disabled>立即領取身份證</button>
+                </form>
+            </div>
+
+            <div id="registered-view" class="hidden">
+                 <div class="bg-white rounded-xl shadow-lg p-6 border-t-8 border-red-600">
+                    <div class="flex items-center space-x-4">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-award text-yellow-500"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+                        <div>
+                            <p class="text-lg text-gray-600">同志，歡迎您</p>
+                            <h2 id="display-name" class="text-3xl font-bold"></h2>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <p class="text-sm text-gray-500 tracking-wider">中華人民共和國 居民身份證</p>
+                        <p id="display-id" class="text-2xl font-mono mt-2 bg-gray-100 p-3 rounded-md text-center tracking-widest"></p>
+                    </div>
+                    <div class="mt-4 flex justify-center">
+                        <div id="qr-code-container" class="grid grid-cols-10 gap-0.5 bg-gray-200 p-2 rounded-lg w-32 h-32"></div>
+                    </div>
+                    <p class="text-xs text-gray-500 text-center mt-2">掃描此碼，即可在關鍵時刻快速撤離戰場。</p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
+                    <h3 class="text-xl font-bold">我的福利</h3>
+                    <div class="mt-4 text-center bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                        <p class="text-lg text-gray-700">您已歸鄉 <strong id="days-count" class="text-3xl font-bold text-red-600">0</strong> 天</p>
+                        <p class="mt-2 text-lg text-gray-700">已獲得 <strong id="eggs-count" class="text-3xl font-bold text-red-600">0</strong> 枚茶葉蛋</p>
+                    </div>
+                    <p class="text-xs text-gray-500 text-center mt-4">每日可自動領取10枚茶葉蛋。請在台灣解放當天，憑 QR Code 到相關部門兌換。</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="upgrade-page" class="tab-content p-4 md:p-6">
+            <h2 class="text-2xl font-bold mb-6 text-center">我的晉升之路</h2>
+             <div class="bg-white rounded-xl shadow-lg p-6 text-center">
+                <p class="text-gray-600">當前身份</p>
+                <p id="current-rank" class="text-4xl font-bold text-red-600 my-2">黨員</p>
+                <p class="text-sm text-gray-500">身份階級：黨員 → 黨支部書記 → 黨委書記 → 黨組領導</p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
+                <h3 class="text-xl font-bold mb-4">升級進度</h3>
+                <p class="text-gray-700">每成功邀請10位同胞歸鄉，即可提升一次身份。</p>
+                <p class="text-center text-2xl font-bold my-4">
+                    <span id="invite-count">0</span> / <span id="invite-goal">10</span> 人
+                </p>
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div id="invite-progress-bar" class="bg-red-600 h-4 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                </div>
+                 <button id="invite-btn" class="main-btn mt-6 flex items-center justify-center gap-2">
+                    <i data-lucide="send" class="w-5 h-5"></i>
+                    <span>生成邀請連結</span>
+                 </button>
+            </div>
+        </div>
+
+        <div id="social-page" class="tab-content p-4 md:p-6">
+            <h2 class="text-2xl font-bold mb-6 text-center">同志情誼</h2>
+            <div id="social-container" class="gap-4" style="column-count: 2;">
+            </div>
+        </div>
+
+    </main>
+    
+    <div id="toast-notification" class="toast"></div>
+
+    <nav id="tab-bar" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around h-16 shadow-inner">
+        <button data-tab="home-page" class="tab-btn active flex flex-col items-center justify-center w-full text-gray-500">
+            <i data-lucide="home"></i>
+            <span class="text-xs mt-1">首頁</span>
+        </button>
+        <button data-tab="upgrade-page" class="tab-btn flex flex-col items-center justify-center w-full text-gray-500">
+            <i data-lucide="chevrons-up"></i>
+            <span class="text-xs mt-1">升級</span>
+        </button>
+        <button data-tab="social-page" class="tab-btn flex flex-col items-center justify-center w-full text-gray-500">
+            <i data-lucide="users"></i>
+            <span class="text-xs mt-1">交友</span>
+        </button>
+    </nav>
+    
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const app = {
+        
+        elements: {
+            splashScreen: document.getElementById('splash-screen'),
+            mainApp: document.getElementById('main-app'),
+            enterAppBtn: document.getElementById('enter-app-btn'),
+            tabBar: document.getElementById('tab-bar'),
+            tabButtons: document.querySelectorAll('.tab-btn'),
+            tabContents: document.querySelectorAll('.tab-content'),
+            unregisteredView: document.getElementById('unregistered-view'),
+            registeredView: document.getElementById('registered-view'),
+            registerForm: document.getElementById('register-form'),
+            registerBtn: document.getElementById('register-btn'),
+            displayName: document.getElementById('display-name'),
+            displayId: document.getElementById('display-id'),
+            daysCount: document.getElementById('days-count'),
+            eggsCount: document.getElementById('eggs-count'),
+            currentRank: document.getElementById('current-rank'),
+            inviteCount: document.getElementById('invite-count'),
+            inviteGoal: document.getElementById('invite-goal'),
+            inviteProgressBar: document.getElementById('invite-progress-bar'),
+            inviteBtn: document.getElementById('invite-btn'),
+            socialContainer: document.getElementById('social-container'),
+            toast: document.getElementById('toast-notification'),
+            qrCodeContainer: document.getElementById('qr-code-container'),
+        },
+        
+        data: {
+            user: null,
+            dbKey: 'junJieAppUser',
+            ranks: ['黨員', '黨支部書記', '黨委書記', '黨組領導'],
+            socialProfiles: [
+                { name: '思妤', age: 24, avatar: '64/E6A26B', hobbies: ['爬山', '看電影'] },
+                { name: '靜宜', age: 22, avatar: '64/F2B4A1', hobbies: ['美食家', '旅行'] },
+                { name: '雅涵', age: 26, avatar: '64/DDBEA9', hobbies: ['閱讀', '瑜珈'] },
+                { name: '心怡', age: 23, avatar: '64/C2B2A8', hobbies: ['攝影', '畫畫'] },
+                { name: '佳穎', age: 25, avatar: '64/A98F80', hobbies: ['跳舞', '音樂'] },
+                { name: '惠玲', age: 27, avatar: '64/8E8E9F', hobbies: ['烘焙', '手作'] },
+                { name: '曉婷', age: 24, avatar: '64/B8B8D1', hobbies: ['潛水', '衝浪'] },
+                { name: '宜君', age: 28, avatar: '64/DEDEEB', hobbies: ['志工', '園藝'] },
+                { name: '佩珊', age: 22, avatar: '64/F5D5D5', hobbies: ['看展', '戲劇'] },
+                { name: '詩涵', age: 26, avatar: '64/E9C3C3', hobbies: ['健身', '寵物'] },
+                { name: '文琪', age: 25, avatar: '64/D3A5A5', hobbies: ['投資', '學習'] },
+                { name: '嘉玲', age: 29, avatar: '64/BDA0A0', hobbies: ['品酒', '烹飪'] },
+            ],
+        },
+
+        init() {
+            lucide.createIcons();
+            this.loadUser();
+            this.addEventListeners();
+            if (this.data.user && this.data.user.isRegistered) {
+                this.elements.splashScreen.classList.add('fade-out');
+                this.elements.mainApp.classList.remove('hidden');
+                this.elements.mainApp.classList.add('fade-in');
+                this.elements.tabBar.classList.remove('hidden');
+                this.updateUI();
+            }
+        },
+        
+        addEventListeners() {
+            this.elements.enterAppBtn.addEventListener('click', () => {
+                this.elements.splashScreen.classList.add('fade-out');
+                this.elements.mainApp.classList.remove('hidden');
+                this.elements.mainApp.classList.add('fade-in');
+                this.elements.tabBar.classList.remove('hidden');
+                this.updateUI();
+            });
+
+            this.elements.tabButtons.forEach(btn => {
+                btn.addEventListener('click', () => this.handleTabClick(btn.dataset.tab));
+            });
+            
+            this.elements.registerForm.addEventListener('input', () => this.validateForm());
+            this.elements.registerForm.addEventListener('submit', (e) => this.handleRegistration(e));
+            this.elements.inviteBtn.addEventListener('click', () => this.copyInviteLink());
+        },
+        
+        loadUser() {
+            const userData = localStorage.getItem(this.data.dbKey);
+            this.data.user = userData ? JSON.parse(userData) : {
+                isRegistered: false,
+                name: '',
+                dateOfBirth: '',
+                address: '',
+                registrationDate: '',
+                idCardNumber: '',
+                invitedCount: 0,
+            };
+        },
+        
+        saveUser() {
+            localStorage.setItem(this.data.dbKey, JSON.stringify(this.data.user));
+        },
+        
+        updateUI() {
+            if (this.data.user.isRegistered) {
+                this.elements.unregisteredView.classList.add('hidden');
+                this.elements.registeredView.classList.remove('hidden');
+                this.renderRegisteredView();
+                this.renderUpgradeView();
+                this.renderSocialView();
+            } else {
+                this.elements.unregisteredView.classList.remove('hidden');
+                this.elements.registeredView.classList.add('hidden');
+            }
+        },
+        
+        handleTabClick(tabId) {
+            this.elements.tabContents.forEach(content => {
+                content.classList.toggle('active', content.id === tabId);
+            });
+            this.elements.tabButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabId);
+            });
+        },
+        
+        validateForm() {
+            const form = this.elements.registerForm;
+            const isValid = form.checkValidity();
+            this.elements.registerBtn.disabled = !isValid;
+        },
+        
+        handleRegistration(event) {
+            event.preventDefault();
+            const formData = new FormData(this.elements.registerForm);
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            
+            this.data.user = {
+                isRegistered: true,
+                name: formData.get('name'),
+                dateOfBirth: formData.get('dob'),
+                address: formData.get('address'),
+                registrationDate: `${yyyy}-${mm}-${dd}`,
+                idCardNumber: this.generateIdCardNumber(formData.get('dob')),
+                invitedCount: 0,
+            };
+            this.saveUser();
+            this.updateUI();
+        },
+        
+        generateIdCardNumber(dob) {
+            const datePart = dob.replace(/-/g, '');
+            const randomPart = Math.floor(1000 + Math.random() * 9000);
+            return `910000${datePart}${randomPart}`;
+        },
+        
+        renderRegisteredView() {
+            this.elements.displayName.textContent = this.data.user.name;
+            this.elements.displayId.textContent = this.data.user.idCardNumber;
+
+            const regDate = new Date(this.data.user.registrationDate);
+            const today = new Date();
+            const diffTime = Math.abs(today - regDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+            this.elements.daysCount.textContent = diffDays;
+            this.elements.eggsCount.textContent = diffDays * 10;
+            this.generateQRCode();
+        },
+        
+        generateQRCode() {
+            this.elements.qrCodeContainer.innerHTML = '';
+            for (let i = 0; i < 100; i++) {
+                const dot = document.createElement('div');
+                const isBlack = Math.random() > 0.4;
+                dot.className = `w-full h-full ${isBlack ? 'bg-black' : 'bg-white'}`;
+                this.elements.qrCodeContainer.appendChild(dot);
+            }
+        },
+
+        renderUpgradeView() {
+            const count = this.data.user.invitedCount;
+            const rankIndex = Math.floor(count / 10);
+            const currentRank = this.data.ranks[Math.min(rankIndex, this.data.ranks.length - 1)];
+            
+            this.elements.currentRank.textContent = currentRank;
+            this.elements.inviteCount.textContent = count % 10;
+            
+            if (currentRank === this.data.ranks[this.data.ranks.length - 1]) {
+                 this.elements.inviteCount.textContent = 10;
+                 this.elements.inviteProgressBar.style.width = '100%';
+                 this.elements.inviteGoal.textContent = '10';
+            } else {
+                 this.elements.inviteGoal.textContent = '10';
+                 const progress = (count % 10) / 10 * 100;
+                 this.elements.inviteProgressBar.style.width = `${progress}%`;
+            }
+        },
+
+        renderSocialView() {
+            if(this.elements.socialContainer.childElementCount > 0) return;
+            let html = '';
+            this.data.socialProfiles.forEach(profile => {
+                html += `
+                    <div class="bg-white rounded-lg shadow p-3 mb-4 break-inside-avoid">
+                        <img src="https://placehold.co/400x${Math.floor(300 + Math.random() * 200)}/${profile.avatar}/FFFFFF?text=" alt="${profile.name}" class="rounded-md w-full">
+                        <div class="mt-3">
+                            <div class="flex justify-between items-center">
+                                <p class="font-bold text-lg">${profile.name}, ${profile.age}</p>
+                                <i data-lucide="message-circle" class="text-red-500"></i>
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                ${profile.hobbies.map(hobby => `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">${hobby}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            this.elements.socialContainer.innerHTML = html;
+            lucide.createIcons();
+        },
+        
+        copyInviteLink() {
+            const textToCopy = `我已投誠大陸，點擊連結跟我一起投誠領取茶葉蛋：${window.location.href}`;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                this.showToast('邀請文案及連結已複製到剪貼簿！');
+            }).catch(err => {
+                this.showToast('複製失敗，請手動分享。');
+            });
+        },
+        
+        showToast(message) {
+            this.elements.toast.textContent = message;
+            this.elements.toast.classList.add('show');
+            setTimeout(() => {
+                this.elements.toast.classList.remove('show');
+            }, 3000);
+        }
+    };
+
+    app.init();
+});
+</script>
+</body>
+</html>
+
+
